@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Map as MlMap } from 'maplibre-gl'
 
 import MapView from './map/MapView'
@@ -9,6 +9,13 @@ import Legend from './ui/Legend'
 import ContextMenu, { type MenuState } from './ui/ContextMenu'
 import PoiForm from './ui/PoiForm'
 import PoiPanel from './ui/PoiPanel'
+import ExpeditionButton from './ui/ExpeditionButton'
+import {
+  loadExpedition,
+  saveExpedition,
+  EMPTY_EXPEDITION,
+  type Expedition,
+} from './data/expedition'
 import { DEFAULT_STATE } from './types'
 import type { AppState, LayerKey, LayerState } from './types'
 import type { BasemapKey, TwiOverlay } from './config'
@@ -34,6 +41,7 @@ export default function App() {
   const [pois, setPois] = useState<Poi[]>(() => loadPois())
   const [poiDraft, setPoiDraft] = useState<{ poi: Poi; isNew: boolean } | null>(null)
   const [poiPanelOpen, setPoiPanelOpen] = useState(false)
+  const [expedition, setExpedition] = useState<Expedition>(() => loadExpedition())
   const mapRef = useRef<MlMap | null>(null)
   const computeAbortRef = useRef<AbortController | null>(null)
 
@@ -121,6 +129,54 @@ export default function App() {
     setPoiPanelOpen(false)
   }
 
+  // --- Expedition GPS tracking (persisted, polled every 10s while active) ---
+  useEffect(() => {
+    saveExpedition(expedition)
+  }, [expedition])
+
+  useEffect(() => {
+    if (!expedition.active) return
+    if (!('geolocation' in navigator)) {
+      setStatus('GPS not available in this browser')
+      return
+    }
+    let cancelled = false
+    let wakeLock: WakeLockSentinel | null = null
+    const poll = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled) return
+          const { longitude, latitude, accuracy } = pos.coords
+          setExpedition((e) =>
+            e.active
+              ? { ...e, points: [...e.points, { lng: longitude, lat: latitude, t: Date.now(), acc: accuracy }] }
+              : e,
+          )
+        },
+        (err) => {
+          if (!cancelled) setStatus(`GPS: ${err.message} (needs HTTPS + location permission)`)
+        },
+        { enableHighAccuracy: true, timeout: 9000, maximumAge: 5000 },
+      )
+    }
+    poll() // immediate first fix
+    const id = setInterval(poll, 10000)
+    // keep the screen awake during an expedition (best-effort)
+    navigator.wakeLock?.request('screen').then(
+      (lock) => (wakeLock = lock),
+      () => {},
+    )
+    return () => {
+      cancelled = true
+      clearInterval(id)
+      wakeLock?.release().catch(() => {})
+    }
+  }, [expedition.active])
+
+  const startExpedition = () => setExpedition({ active: true, startedAt: Date.now(), points: [] })
+  const stopExpedition = () => setExpedition((e) => ({ ...e, active: false }))
+  const clearExpedition = () => setExpedition(EMPTY_EXPEDITION)
+
   // Free OpenStreetMap (Nominatim) geocoding, biased to Nevada/US.
   const handleSearch = useCallback(async (query: string): Promise<boolean> => {
     const [w, s, e, n] = NEVADA_BOUNDS
@@ -153,6 +209,8 @@ export default function App() {
         alterationOverlay={alterationOverlay}
         pois={pois}
         computeAt={computeAt}
+        track={expedition.points}
+        expeditionActive={expedition.active}
         onContextMenu={(lng, lat, x, y) => setMenu({ lng, lat, x, y })}
         onPoiClick={(poi) => setPoiDraft({ poi, isNew: false })}
         onMapReady={(m) => (mapRef.current = m)}
@@ -166,6 +224,12 @@ export default function App() {
         <div className="brand">⛏️ Claim Jumper</div>
         <SearchBox onSearch={handleSearch} />
         {status && <div className="status">{status}</div>}
+        <ExpeditionButton
+          expedition={expedition}
+          onStart={startExpedition}
+          onStop={stopExpedition}
+          onClear={clearExpedition}
+        />
         <button className="spots-btn" onClick={() => setPoiPanelOpen(true)} title="Saved spots">
           📍 Spots {pois.length > 0 && <span className="spots-count">{pois.length}</span>}
         </button>

@@ -181,6 +181,57 @@ body { background: var(--bg); color: var(--text); }
   line-height: 1.4;
 }
 
+/* --- expedition button (topbar) --- */
+.exp-wrap { display: inline-flex; gap: 6px; align-items: center; }
+.exp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.exp-btn.exp-recording {
+  background: rgba(226, 59, 59, 0.18);
+  border-color: rgba(226, 59, 59, 0.6);
+  color: #ffd0d0;
+  font-variant-numeric: tabular-nums;
+}
+.exp-rec-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e23b3b;
+  animation: exp-pulse 1.2s infinite;
+}
+@keyframes exp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.exp-clear {
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* expedition start marker (green) */
+.expedition-start {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2ec16b;
+  border: 2px solid #06341c;
+  box-shadow: 0 0 0 3px rgba(46, 193, 107, 0.3);
+}
+
 /* --- spots button (topbar) --- */
 .spots-btn {
   display: flex;

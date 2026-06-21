@@ -34,6 +34,9 @@ export const IDS = {
   expiredClaimsLine: 'expired-claims-line',
   mrdsSource: 'mrds-sites',
   mrdsLayer: 'mrds-sites-layer',
+  expeditionSource: 'expedition',
+  expeditionLine: 'expedition-line',
+  expeditionDots: 'expedition-dots',
 } as const
 
 export function buildBaseStyle(basemap: BasemapKey): StyleSpecification {

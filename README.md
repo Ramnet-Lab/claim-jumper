@@ -39,7 +39,12 @@ computes, and it all ships as **one Docker container**.
 - **Active claims** &amp; **expired/closed claims** (BLM MLRS) — what's staked vs. open ground.
 - **Right-click readout** — instant land owner + claim status + rock unit at any point.
 
-**Work it**
+**Work it (in the field, on your phone)**
+- **Live GPS location** — the locate button shows your position + heading and follows you.
+- **Start expedition** — records a GPS breadcrumb trail (polled every 10s), drawing a dotted
+  trace from your start point so you can see where you've been and backtrack. Distance +
+  duration update live; the screen is kept awake while recording. Persists across refreshes.
+  *(Geolocation needs HTTPS — use the secure/hosted URL on a phone, not plain `http://…:port`.)*
 - **Right-click menu** — save a point of interest, compute wetness/alteration, or navigate
   (opens Google Maps directions).
 - **Field-notebook POIs** — name, notes, **uploaded photos**, and **auto-captured site

@@ -34,6 +34,8 @@ import {
 import type { AppState } from '../types'
 import type { TwiOverlay } from '../config'
 import type { Poi } from '../data/pois'
+import type { TrackPoint } from '../data/expedition'
+import type { FeatureCollection } from 'geojson'
 
 const MRDS_MIN_ZOOM = 7
 
@@ -43,6 +45,8 @@ interface Props {
   alterationOverlay: TwiOverlay | null
   pois: Poi[]
   computeAt: [number, number] | null
+  track: TrackPoint[]
+  expeditionActive: boolean
   onContextMenu: (lng: number, lat: number, x: number, y: number) => void
   onPoiClick: (poi: Poi) => void
   onMapReady?: (map: MlMap) => void
@@ -55,6 +59,8 @@ export default function MapView({
   alterationOverlay,
   pois,
   computeAt,
+  track,
+  expeditionActive,
   onContextMenu,
   onPoiClick,
   onMapReady,
@@ -72,6 +78,8 @@ export default function MapView({
   onPoiClickRef.current = onPoiClick
   const markerRef = useRef<maplibregl.Marker | null>(null)
   const poiMarkersRef = useRef<maplibregl.Marker[]>([])
+  const geolocateRef = useRef<maplibregl.GeolocateControl | null>(null)
+  const startMarkerRef = useRef<maplibregl.Marker | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const readyRef = useRef(false)
   const [ready, setReady] = useState(false)
@@ -92,6 +100,14 @@ export default function MapView({
     ;(window as unknown as { __map?: MlMap }).__map = map // debug handle (console access)
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left')
     map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-left')
+    // "Show my location" — live GPS dot + heading, follows you when active.
+    const geolocate = new maplibregl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: true,
+      showAccuracyCircle: true,
+    })
+    map.addControl(geolocate, 'top-right')
+    geolocateRef.current = geolocate
 
     map.on('load', () => {
       addClaimsLayers(map)
@@ -104,6 +120,7 @@ export default function MapView({
       addGeologyLayer(map, IDS.landLayer)
       addFaultsLayer(map, IDS.mrdsLayer)
       addContactsLayer(map, IDS.faultsLayer)
+      addExpeditionLayers(map)
       if (twiRef.current)
         setImageOverlay(map, IDS.twiSource, IDS.twiLayer, twiRef.current, IDS.activeClaimsFill)
       wirePopups(map, () => stateRef.current)
@@ -198,6 +215,39 @@ export default function MapView({
         .addTo(map)
     })
   }, [pois, ready])
+
+  // --- expedition breadcrumb trace + start marker ---
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const src = map.getSource(IDS.expeditionSource) as maplibregl.GeoJSONSource | undefined
+    src?.setData(buildTrackFC(track))
+    // start marker (green) at the first fix
+    if (track.length) {
+      const start: [number, number] = [track[0].lng, track[0].lat]
+      if (startMarkerRef.current) startMarkerRef.current.setLngLat(start)
+      else {
+        const el = document.createElement('div')
+        el.className = 'expedition-start'
+        el.title = 'Expedition start'
+        startMarkerRef.current = new maplibregl.Marker({ element: el }).setLngLat(start).addTo(map)
+      }
+    } else {
+      startMarkerRef.current?.remove()
+      startMarkerRef.current = null
+    }
+  }, [track, ready])
+
+  // --- when an expedition starts, switch on the live-location dot + follow ---
+  useEffect(() => {
+    if (expeditionActive && ready && geolocateRef.current) {
+      try {
+        geolocateRef.current.trigger()
+      } catch {
+        /* geolocation needs HTTPS + permission; handled by status elsewhere */
+      }
+    }
+  }, [expeditionActive, ready])
 
   // --- fetch claims + MRDS for current viewport ---
   function fetchData() {
@@ -364,6 +414,51 @@ function applyAllState(map: MlMap, s: AppState) {
 function vis(map: MlMap, layerId: string, visible: boolean) {
   if (map.getLayer(layerId))
     map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none')
+}
+
+// Expedition trace: a connecting line + a dot at each 10s GPS ping, drawn on top.
+function addExpeditionLayers(map: MlMap) {
+  map.addSource(IDS.expeditionSource, {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+  })
+  map.addLayer({
+    id: IDS.expeditionLine,
+    type: 'line',
+    source: IDS.expeditionSource,
+    filter: ['==', ['geometry-type'], 'LineString'],
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#19e3ff', 'line-width': 2.5, 'line-opacity': 0.6 },
+  })
+  map.addLayer({
+    id: IDS.expeditionDots,
+    type: 'circle',
+    source: IDS.expeditionSource,
+    filter: ['==', ['geometry-type'], 'Point'],
+    paint: {
+      'circle-radius': 3.4,
+      'circle-color': '#19e3ff',
+      'circle-stroke-color': '#06343b',
+      'circle-stroke-width': 1,
+    },
+  })
+}
+
+function buildTrackFC(track: TrackPoint[]): FeatureCollection {
+  const coords = track.map((p) => [p.lng, p.lat])
+  return {
+    type: 'FeatureCollection',
+    features: [
+      ...(coords.length > 1
+        ? [{ type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: coords } }]
+        : []),
+      ...track.map((p) => ({
+        type: 'Feature' as const,
+        properties: {},
+        geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
+      })),
+    ],
+  }
 }
 
 // Pulsing marker shown at the clicked point while wetness computes.
