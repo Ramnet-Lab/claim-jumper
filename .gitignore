@@ -1,0 +1,19 @@
+# dependencies / build output
+node_modules/
+dist/
+*.local
+.DS_Store
+tsconfig.tsbuildinfo
+
+# python
+pipeline/.venv/
+__pycache__/
+*.pyc
+
+# runtime-generated overlays + scratch rasters
+public/twi/
+public/alteration/
+*.tif
+
+# logs
+*.log

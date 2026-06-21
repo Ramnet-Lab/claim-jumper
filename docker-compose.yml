@@ -1,0 +1,8 @@
+services:
+  claim-jumper:
+    build: .
+    image: cliam-jumper:latest
+    container_name: cliam-jumper
+    ports:
+      - "8765:8011"   # host:container — change the host port if 8765 is taken
+    restart: unless-stopped

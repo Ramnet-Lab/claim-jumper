@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.DS_Store
+*.local
+# python
+pipeline/.venv
+**/__pycache__
+*.tif
+# runtime-generated overlays (keep the round-mountain seed though)
+public/twi/ondemand
+public/alteration/ondemand
+# plans / scratch
+*.log
