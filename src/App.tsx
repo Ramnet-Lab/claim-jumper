@@ -19,6 +19,7 @@ import {
   newExpId,
   defaultExpName,
   boundsOf,
+  haversine,
   type Expedition,
   type SavedExpedition,
 } from './data/expedition'
@@ -159,35 +160,36 @@ export default function App() {
       setStatus('GPS not available in this browser')
       return
     }
-    let cancelled = false
     let wakeLock: WakeLockSentinel | null = null
-    const poll = () => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (cancelled) return
-          const { longitude, latitude, accuracy } = pos.coords
-          setExpedition((e) =>
-            e.active
-              ? { ...e, points: [...e.points, { lng: longitude, lat: latitude, t: Date.now(), acc: accuracy }] }
-              : e,
-          )
-        },
-        (err) => {
-          if (!cancelled) setStatus(`GPS: ${err.message} (needs HTTPS + location permission)`)
-        },
-        { enableHighAccuracy: true, timeout: 9000, maximumAge: 5000 },
-      )
-    }
-    poll() // immediate first fix
-    const id = setInterval(poll, 10000)
-    // keep the screen awake during an expedition (best-effort)
+    const ACC_GATE = 40 // metres — drop fixes worse than this (WiFi/cell fallbacks)
+    const MIN_DIST = 8 // metres between recorded breadcrumbs
+    const MIN_TIME = 8000 // ms between recorded breadcrumbs
+
+    // Continuous watch keeps the GPS warm → far smoother/accurate than cold 10s polls.
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { longitude, latitude, accuracy } = pos.coords
+        const np = { lng: longitude, lat: latitude, t: pos.timestamp || Date.now(), acc: accuracy }
+        setExpedition((e) => {
+          if (!e.active) return e
+          const last = e.points[e.points.length - 1]
+          if (last && accuracy > ACC_GATE) return e // skip low-accuracy garbage
+          if (last) {
+            const moved = haversine(last, np)
+            if (moved < MIN_DIST && np.t - last.t < MIN_TIME) return e // skip standing-still jitter
+          }
+          return { ...e, points: [...e.points, np] }
+        })
+      },
+      (err) => setStatus(`GPS: ${err.message} (needs HTTPS + location permission)`),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+    )
     navigator.wakeLock?.request('screen').then(
       (lock) => (wakeLock = lock),
       () => {},
     )
     return () => {
-      cancelled = true
-      clearInterval(id)
+      navigator.geolocation.clearWatch(watchId)
       wakeLock?.release().catch(() => {})
     }
   }, [expedition.active])
