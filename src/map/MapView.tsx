@@ -319,14 +319,10 @@ export default function MapView({
       setContacts(map, { type: 'FeatureCollection', features: [] })
     }
 
-    if (jobs.length) {
-      onStatus?.('Loading features…')
-      Promise.allSettled(jobs).then(() => {
-        if (!ac.signal.aborted) onStatus?.('')
-      })
-    } else if (zoom < MIN_FETCH_ZOOM) {
+    // Stable zoom hint only — no transient "loading" flash on every pan/zoom.
+    if (!jobs.length && zoom < MIN_FETCH_ZOOM) {
       onStatus?.(`Zoom in to load claims (≥ z${MIN_FETCH_ZOOM})`)
-    } else {
+    } else if (zoom >= MIN_FETCH_ZOOM) {
       onStatus?.('')
     }
   }
