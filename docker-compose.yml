@@ -5,4 +5,11 @@ services:
     container_name: cliam-jumper
     ports:
       - "8765:8011"   # host:container — change the host port if 8765 is taken
+    environment:
+      - CJ_DATA_DIR=/data
+    volumes:
+      - claim-jumper-data:/data   # shared expeditions/POIs — persists across rebuilds
     restart: unless-stopped
+
+volumes:
+  claim-jumper-data:

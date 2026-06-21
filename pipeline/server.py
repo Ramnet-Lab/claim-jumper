@@ -16,6 +16,7 @@ The Vite dev server proxies /api -> here, so the browser calls same-origin /api/
 from __future__ import annotations
 
 import os
+import json
 import time
 import threading
 import traceback
@@ -47,6 +48,86 @@ app = Flask(__name__, static_folder=WEB_DIR if _HAS_WEB else None, static_url_pa
 # WhiteboxTools isn't safe to run concurrently (shared native state) — serialize computes.
 _compute_lock = threading.Lock()
 _alt_lock = threading.Lock()
+
+# --- shared, cross-device storage (expeditions, POIs) ---
+# A persistent JSON store so the same data shows up on every device. Point CJ_DATA_DIR at a
+# Docker volume so it survives container rebuilds.
+DATA_DIR = os.environ.get("CJ_DATA_DIR") or os.path.join(REPO_ROOT, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+
+class JsonStore:
+    """Tiny id-keyed JSON store with atomic read-modify-write."""
+
+    def __init__(self, path):
+        self.path = path
+        self.lock = threading.Lock()
+
+    def _read(self):
+        try:
+            with open(self.path) as f:
+                return json.load(f)
+        except (FileNotFoundError, ValueError):
+            return {}
+
+    def _write(self, data):
+        tmp = self.path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(data, f)
+        os.replace(tmp, self.path)
+
+    def all(self):
+        with self.lock:
+            return list(self._read().values())
+
+    def upsert(self, item):
+        with self.lock:
+            data = self._read()
+            data[str(item["id"])] = item
+            self._write(data)
+
+    def delete(self, item_id):
+        with self.lock:
+            data = self._read()
+            data.pop(str(item_id), None)
+            self._write(data)
+
+
+EXP_STORE = JsonStore(os.path.join(DATA_DIR, "expeditions.json"))
+POI_STORE = JsonStore(os.path.join(DATA_DIR, "pois.json"))
+
+
+def _crud(store):
+    """Wire GET (list) + PUT (upsert) + DELETE for a store under the calling route."""
+    if request.method == "PUT":
+        item = request.get_json(force=True, silent=True) or {}
+        if "id" not in item:
+            return jsonify(error="missing id"), 400
+        store.upsert(item)
+        return jsonify(ok=True)
+    return jsonify(store.all())
+
+
+@app.route("/api/expeditions", methods=["GET", "PUT"])
+def expeditions():
+    return _crud(EXP_STORE)
+
+
+@app.delete("/api/expeditions/<item_id>")
+def delete_expedition(item_id):
+    EXP_STORE.delete(item_id)
+    return jsonify(ok=True)
+
+
+@app.route("/api/pois", methods=["GET", "PUT"])
+def pois():
+    return _crud(POI_STORE)
+
+
+@app.delete("/api/pois/<item_id>")
+def delete_poi(item_id):
+    POI_STORE.delete(item_id)
+    return jsonify(ok=True)
 
 
 @app.post("/api/twi")

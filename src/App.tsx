@@ -31,6 +31,14 @@ import { requestTwi, requestAlteration } from './data/twiClient'
 import { loadPois, savePois, newPoiId, type Poi } from './data/pois'
 import { deleteImagesForPoi } from './data/poiImages'
 import { captureSite } from './data/captureSite'
+import {
+  fetchExpeditions,
+  putExpedition,
+  deleteExpeditionRemote,
+  fetchPois,
+  putPoi,
+  deletePoiRemote,
+} from './data/sync'
 
 export type RightClickMode = 'twi' | 'alteration'
 
@@ -113,10 +121,12 @@ export default function App() {
   const handleSavePoi = (poi: Poi) => {
     const exists = pois.some((p) => p.id === poi.id)
     persistPois(exists ? pois.map((p) => (p.id === poi.id ? poi : p)) : [...pois, poi])
+    void putPoi(poi) // sync to server (cross-device)
     setPoiDraft(null)
   }
   const handleDeletePoi = (id: string) => {
     persistPois(pois.filter((p) => p.id !== id))
+    void deletePoiRemote(id)
     void deleteImagesForPoi(id) // drop its photos from IndexedDB too
     setPoiDraft(null)
   }
@@ -186,6 +196,28 @@ export default function App() {
     saveExpeditions(expeditions)
   }, [expeditions])
 
+  // Pull shared data from the server on load + when the tab regains focus, so saved
+  // expeditions & POIs follow you across devices. localStorage stays a fast/offline cache.
+  useEffect(() => {
+    const pull = () => {
+      fetchExpeditions().then((list) => {
+        if (list) {
+          setExpeditions(list)
+          saveExpeditions(list)
+        }
+      })
+      fetchPois().then((list) => {
+        if (list) {
+          setPois(list)
+          savePois(list)
+        }
+      })
+    }
+    pull()
+    window.addEventListener('focus', pull)
+    return () => window.removeEventListener('focus', pull)
+  }, [])
+
   const startExpedition = () => {
     setViewedExpId(null)
     setExpedition({ active: true, startedAt: Date.now(), points: [] })
@@ -201,6 +233,7 @@ export default function App() {
         points: expedition.points,
       }
       setExpeditions((list) => [...list, saved])
+      void putExpedition(saved) // sync to server (cross-device)
     }
     setExpedition((e) => ({ ...e, active: false }))
   }
@@ -210,10 +243,17 @@ export default function App() {
     if (b) mapRef.current?.fitBounds(b, { padding: 70, maxZoom: 15, duration: 800 })
     setExpPanelOpen(false)
   }
-  const renameExpedition = (id: string, name: string) =>
-    setExpeditions((list) => list.map((e) => (e.id === id ? { ...e, name } : e)))
+  const renameExpedition = (id: string, name: string) => {
+    setExpeditions((list) => {
+      const next = list.map((e) => (e.id === id ? { ...e, name } : e))
+      const updated = next.find((e) => e.id === id)
+      if (updated) void putExpedition(updated)
+      return next
+    })
+  }
   const deleteExpedition = (id: string) => {
     setExpeditions((list) => list.filter((e) => e.id !== id))
+    void deleteExpeditionRemote(id)
     if (viewedExpId === id) setViewedExpId(null)
   }
 

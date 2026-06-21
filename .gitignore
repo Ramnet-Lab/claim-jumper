@@ -17,3 +17,6 @@ public/alteration/
 
 # logs
 *.log
+
+# server-side sync store (local dev)
+data/
