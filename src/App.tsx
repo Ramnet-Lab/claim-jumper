@@ -10,11 +10,17 @@ import ContextMenu, { type MenuState } from './ui/ContextMenu'
 import PoiForm from './ui/PoiForm'
 import PoiPanel from './ui/PoiPanel'
 import ExpeditionButton from './ui/ExpeditionButton'
+import ExpeditionPanel from './ui/ExpeditionPanel'
 import {
   loadExpedition,
   saveExpedition,
-  EMPTY_EXPEDITION,
+  loadExpeditions,
+  saveExpeditions,
+  newExpId,
+  defaultExpName,
+  boundsOf,
   type Expedition,
+  type SavedExpedition,
 } from './data/expedition'
 import { DEFAULT_STATE } from './types'
 import type { AppState, LayerKey, LayerState } from './types'
@@ -42,6 +48,9 @@ export default function App() {
   const [poiDraft, setPoiDraft] = useState<{ poi: Poi; isNew: boolean } | null>(null)
   const [poiPanelOpen, setPoiPanelOpen] = useState(false)
   const [expedition, setExpedition] = useState<Expedition>(() => loadExpedition())
+  const [expeditions, setExpeditions] = useState<SavedExpedition[]>(() => loadExpeditions())
+  const [viewedExpId, setViewedExpId] = useState<string | null>(null)
+  const [expPanelOpen, setExpPanelOpen] = useState(false)
   const mapRef = useRef<MlMap | null>(null)
   const computeAbortRef = useRef<AbortController | null>(null)
 
@@ -173,9 +182,44 @@ export default function App() {
     }
   }, [expedition.active])
 
-  const startExpedition = () => setExpedition({ active: true, startedAt: Date.now(), points: [] })
-  const stopExpedition = () => setExpedition((e) => ({ ...e, active: false }))
-  const clearExpedition = () => setExpedition(EMPTY_EXPEDITION)
+  useEffect(() => {
+    saveExpeditions(expeditions)
+  }, [expeditions])
+
+  const startExpedition = () => {
+    setViewedExpId(null)
+    setExpedition({ active: true, startedAt: Date.now(), points: [] })
+  }
+  // Stop = auto-archive the trace into the saved list, then keep it shown.
+  const stopExpedition = () => {
+    if (expedition.active && expedition.startedAt && expedition.points.length > 0) {
+      const saved: SavedExpedition = {
+        id: newExpId(),
+        name: defaultExpName(expedition.startedAt),
+        startedAt: expedition.startedAt,
+        endedAt: Date.now(),
+        points: expedition.points,
+      }
+      setExpeditions((list) => [...list, saved])
+    }
+    setExpedition((e) => ({ ...e, active: false }))
+  }
+  const showExpedition = (exp: SavedExpedition) => {
+    setViewedExpId(exp.id)
+    const b = boundsOf(exp.points)
+    if (b) mapRef.current?.fitBounds(b, { padding: 70, maxZoom: 15, duration: 800 })
+    setExpPanelOpen(false)
+  }
+  const renameExpedition = (id: string, name: string) =>
+    setExpeditions((list) => list.map((e) => (e.id === id ? { ...e, name } : e)))
+  const deleteExpedition = (id: string) => {
+    setExpeditions((list) => list.filter((e) => e.id !== id))
+    if (viewedExpId === id) setViewedExpId(null)
+  }
+
+  // What the map draws: a viewed saved trace, else the current/just-finished one.
+  const viewedExp = viewedExpId ? expeditions.find((e) => e.id === viewedExpId) : null
+  const shownTrack = viewedExp ? viewedExp.points : expedition.points
 
   // Free OpenStreetMap (Nominatim) geocoding, biased to Nevada/US.
   const handleSearch = useCallback(async (query: string): Promise<boolean> => {
@@ -209,7 +253,7 @@ export default function App() {
         alterationOverlay={alterationOverlay}
         pois={pois}
         computeAt={computeAt}
-        track={expedition.points}
+        track={shownTrack}
         expeditionActive={expedition.active}
         onContextMenu={(lng, lat, x, y) => setMenu({ lng, lat, x, y })}
         onPoiClick={(poi) => setPoiDraft({ poi, isNew: false })}
@@ -226,9 +270,10 @@ export default function App() {
         {status && <div className="status">{status}</div>}
         <ExpeditionButton
           expedition={expedition}
+          savedCount={expeditions.length}
           onStart={startExpedition}
           onStop={stopExpedition}
-          onClear={clearExpedition}
+          onOpenList={() => setExpPanelOpen(true)}
         />
         <button className="spots-btn" onClick={() => setPoiPanelOpen(true)} title="Saved spots">
           📍 Spots {pois.length > 0 && <span className="spots-count">{pois.length}</span>}
@@ -283,6 +328,16 @@ export default function App() {
         onFlyTo={flyToPoi}
         onEdit={(poi) => setPoiDraft({ poi, isNew: false })}
         onDelete={handleDeletePoi}
+      />
+
+      <ExpeditionPanel
+        open={expPanelOpen}
+        expeditions={expeditions}
+        viewedId={viewedExpId}
+        onClose={() => setExpPanelOpen(false)}
+        onShow={showExpedition}
+        onRename={renameExpedition}
+        onDelete={deleteExpedition}
       />
     </div>
   )

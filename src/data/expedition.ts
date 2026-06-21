@@ -15,9 +15,62 @@ export interface Expedition {
   points: TrackPoint[]
 }
 
+/** A finished, archived expedition (auto-saved on stop). */
+export interface SavedExpedition {
+  id: string
+  name: string
+  startedAt: number
+  endedAt: number
+  points: TrackPoint[]
+}
+
 export const EMPTY_EXPEDITION: Expedition = { active: false, startedAt: null, points: [] }
 
 const KEY = 'claim-jumper.expedition'
+const LIST_KEY = 'claim-jumper.expeditions'
+
+export function loadExpeditions(): SavedExpedition[] {
+  try {
+    const raw = localStorage.getItem(LIST_KEY)
+    return raw ? (JSON.parse(raw) as SavedExpedition[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveExpeditions(list: SavedExpedition[]): void {
+  try {
+    localStorage.setItem(LIST_KEY, JSON.stringify(list))
+  } catch {
+    /* storage unavailable — non-fatal */
+  }
+}
+
+export function newExpId(): string {
+  const rand =
+    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${performance.now()}`
+  return `exp_${rand}`
+}
+
+export function defaultExpName(startedAt: number): string {
+  return `Expedition · ${new Date(startedAt).toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`
+}
+
+/** [[west,south],[east,north]] of a track, or null if empty. */
+export function boundsOf(points: TrackPoint[]): [[number, number], [number, number]] | null {
+  if (!points.length) return null
+  let w = points[0].lng, e = points[0].lng, s = points[0].lat, n = points[0].lat
+  for (const p of points) {
+    w = Math.min(w, p.lng); e = Math.max(e, p.lng)
+    s = Math.min(s, p.lat); n = Math.max(n, p.lat)
+  }
+  return [[w, s], [e, n]]
+}
 
 export function loadExpedition(): Expedition {
   try {

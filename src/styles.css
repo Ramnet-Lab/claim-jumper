@@ -212,15 +212,35 @@ body { background: var(--bg); color: var(--text); }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; }
 }
-.exp-clear {
-  background: var(--panel);
-  color: var(--muted);
+.exp-list-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--panel-2);
+  color: var(--text);
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 7px 9px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
 }
+.exp-name {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 13.5px;
+  border-radius: 5px;
+  padding: 3px 5px;
+  margin: -3px -5px 2px;
+}
+.exp-name:hover, .exp-name:focus {
+  border-color: var(--line);
+  background: var(--panel);
+  outline: none;
+}
+.exp-card-active { border-color: var(--accent) !important; }
 
 /* expedition start marker (green) */
 .expedition-start {

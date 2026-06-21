@@ -4,12 +4,19 @@ import { trackMeters, formatMiles, formatDuration } from '../data/expedition'
 
 interface Props {
   expedition: Expedition
+  savedCount: number
   onStart: () => void
   onStop: () => void
-  onClear: () => void
+  onOpenList: () => void
 }
 
-export default function ExpeditionButton({ expedition, onStart, onStop, onClear }: Props) {
+export default function ExpeditionButton({
+  expedition,
+  savedCount,
+  onStart,
+  onStop,
+  onOpenList,
+}: Props) {
   const { active, startedAt, points } = expedition
 
   // tick once a second to update the live duration while recording
@@ -20,28 +27,24 @@ export default function ExpeditionButton({ expedition, onStart, onStop, onClear 
     return () => clearInterval(id)
   }, [active])
 
-  const dist = formatMiles(trackMeters(points))
-  const dur = startedAt ? formatDuration(Date.now() - startedAt) : '0:00'
-
   if (active) {
+    const dist = formatMiles(trackMeters(points))
+    const dur = startedAt ? formatDuration(Date.now() - startedAt) : '0:00'
     return (
-      <button className="exp-btn exp-recording" onClick={onStop} title="Stop expedition">
+      <button className="exp-btn exp-recording" onClick={onStop} title="Stop &amp; save expedition">
         <span className="exp-rec-dot" /> Stop · {dur} · {dist}
       </button>
     )
   }
 
-  // inactive: start a new one; if a finished trace exists, show its length + a clear
   return (
     <span className="exp-wrap">
       <button className="exp-btn" onClick={onStart} title="Start expedition (records a GPS trace)">
         ▶ Expedition
       </button>
-      {points.length > 0 && (
-        <button className="exp-clear" onClick={onClear} title={`Clear trace (${dist})`}>
-          {dist} ✕
-        </button>
-      )}
+      <button className="exp-list-btn" onClick={onOpenList} title="Saved expeditions">
+        🗂 {savedCount > 0 && <span className="spots-count">{savedCount}</span>}
+      </button>
     </span>
   )
 }
