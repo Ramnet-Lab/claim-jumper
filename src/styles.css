@@ -16,7 +16,13 @@ html, body, #root { height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--text); }
 
 .app { position: relative; height: 100vh; width: 100vw; overflow: hidden; }
-.map-root { position: absolute; inset: 0; }
+.map-root {
+  position: absolute;
+  inset: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* no iOS long-press callout — we use long-press for the menu */
+}
 
 /* --- top bar --- */
 .topbar {
@@ -42,7 +48,16 @@ body { background: var(--bg); color: var(--text); }
   cursor: pointer;
   font-size: 16px;
 }
-.status { color: var(--accent); font-size: 13px; margin-left: auto; white-space: nowrap; }
+.status {
+  color: var(--accent);
+  font-size: 13px;
+  margin-left: auto;
+  white-space: nowrap;
+  max-width: 32vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hide-narrow { display: inline; }
 
 /* --- search --- */
 .searchbox { display: flex; align-items: center; gap: 6px; }
@@ -469,6 +484,7 @@ body { background: var(--bg); color: var(--text); }
 .tag-mrds { background: rgba(244,196,48,0.2); color: var(--accent); }
 .tag-fault { background: rgba(155,48,255,0.22); color: #cfa0ff; }
 .tag-geo { background: rgba(232,54,155,0.22); color: #f6a0cf; }
+.tag-restricted { background: rgba(255,106,0,0.22); color: #ffb27a; }
 .legend-note { font-size: 11px; color: var(--muted); font-style: italic; margin: 3px 0 2px; }
 .popup-note { font-size: 12px; color: var(--muted); margin: 4px 0 0; line-height: 1.4; }
 .popup-title { font-weight: 700; margin-bottom: 6px; font-size: 14px; }
@@ -480,4 +496,23 @@ body { background: var(--bg); color: var(--text); }
 @media (max-width: 640px) {
   .panel { width: 86vw; }
   .searchbox input { width: 150px; }
+}
+
+/* --- phone layout --- */
+@media (max-width: 560px) {
+  .hide-narrow { display: none; }
+  .topbar { gap: 7px; padding: 0 8px; height: 50px; }
+  .brand { font-size: 19px; }
+  .searchbox input { width: 108px; padding: 7px 8px; }
+  .searchbox button { padding: 7px 9px; }
+  .status { max-width: 28vw; font-size: 11px; }
+  .panel { top: 50px; width: 92vw; padding: 12px; }
+  .poi-panel { width: 92vw; }
+  .exp-btn, .spots-btn, .exp-list-btn, .panel-toggle { padding: 7px 9px; }
+  /* roomier touch targets in the panel */
+  .row-check { padding: 4px 0; font-size: 14px; }
+  .mineral-chip { font-size: 13px; padding: 3px 0; }
+  .opacity { height: 22px; }
+  .ctx-item { padding: 11px 12px; font-size: 14px; }
+  .modal { width: 92vw; }
 }

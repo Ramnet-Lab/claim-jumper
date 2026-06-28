@@ -21,6 +21,10 @@ export default function Legend() {
         <span className="legend-line-contact" />
         <span>Geologic contact</span>
       </div>
+      <div className="legend-row">
+        <span className="legend-swatch" style={{ background: 'rgba(255,106,0,0.3)', border: '1.5px dashed #c43c00' }} />
+        <span>Restricted area</span>
+      </div>
       <div className="legend-sub">Geology (when on)</div>
       <div className="legend-row">
         <span className="legend-swatch" style={{ background: '#e8369b', border: '1px solid #0006' }} />

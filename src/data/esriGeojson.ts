@@ -12,6 +12,8 @@ export interface BboxQueryOptions {
   outFields?: string
   /** Max features to pull across pages (safety cap). */
   maxFeatures?: number
+  /** Generalize geometry by this many degrees (shrinks big polygons like PAD-US). */
+  maxAllowableOffset?: number
   /** AbortSignal so stale viewport queries can be cancelled. */
   signal?: AbortSignal
 }
@@ -26,7 +28,7 @@ export async function queryEsriBbox(
   serviceUrl: string,
   opts: BboxQueryOptions,
 ): Promise<FeatureCollection> {
-  const { bbox, where = '1=1', outFields = '*', maxFeatures = 6000, signal } = opts
+  const { bbox, where = '1=1', outFields = '*', maxFeatures = 6000, maxAllowableOffset, signal } = opts
 
   const collected: FeatureCollection = { type: 'FeatureCollection', features: [] }
   let offset = 0
@@ -45,6 +47,7 @@ export async function queryEsriBbox(
       resultRecordCount: String(PAGE_SIZE),
       resultOffset: String(offset),
     })
+    if (maxAllowableOffset) params.set('maxAllowableOffset', String(maxAllowableOffset))
 
     const res = await fetch(`${serviceUrl}/query?${params.toString()}`, { signal })
     if (!res.ok) throw new Error(`Esri query failed (${res.status}) for ${serviceUrl}`)

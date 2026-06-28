@@ -5,6 +5,7 @@ export type LayerKey =
   | 'contacts'
   | 'magnetic'
   | 'land'
+  | 'restricted'
   | 'hillshade'
   | 'hiresRelief'
   | 'twi'
@@ -34,6 +35,7 @@ export const DEFAULT_STATE: AppState = {
     contacts: { visible: false, opacity: 0.9 },
     magnetic: { visible: false, opacity: 0.6 },
     land: { visible: false, opacity: 0.45 },
+    restricted: { visible: false, opacity: 0.4 },
     hillshade: { visible: true, opacity: 0.6 },
     hiresRelief: { visible: false, opacity: 0.8 },
     twi: { visible: false, opacity: 0.7 },

@@ -40,7 +40,7 @@ export default function ExpeditionButton({
   return (
     <span className="exp-wrap">
       <button className="exp-btn" onClick={onStart} title="Start expedition (records a GPS trace)">
-        ▶ Expedition
+        ▶<span className="hide-narrow"> Expedition</span>
       </button>
       <button className="exp-list-btn" onClick={onOpenList} title="Saved expeditions">
         🗂 {savedCount > 0 && <span className="spots-count">{savedCount}</span>}

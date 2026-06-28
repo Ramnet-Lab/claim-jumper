@@ -26,7 +26,11 @@ export default function ContextMenu({
 }: Props) {
   useEffect(() => {
     if (!menu) return
-    const onClick = () => onClose()
+    const openedAt = Date.now()
+    // Ignore the synthetic click that fires right after a long-press release.
+    const onClick = () => {
+      if (Date.now() - openedAt > 350) onClose()
+    }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('click', onClick)
     window.addEventListener('keydown', onKey)

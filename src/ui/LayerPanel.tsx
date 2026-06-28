@@ -8,6 +8,7 @@ const LAYER_META: { key: LayerKey; label: string; hint?: string }[] = [
   { key: 'contacts', label: 'Contacts (formation boundaries)' },
   { key: 'magnetic', label: 'Magnetic anomaly' },
   { key: 'land', label: 'Land status (BLM / private)' },
+  { key: 'restricted', label: '⚠ Restricted areas (refuge/wilderness)' },
   { key: 'hillshade', label: 'Hillshade / relief', hint: 'slider = strength' },
   { key: 'hiresRelief', label: 'Hi-res hillshade (3DEP)' },
   { key: 'twi', label: 'Wetness heatmap (TWI)' },

@@ -38,6 +38,45 @@ export function geologyPopupHtml(u: GeologyUnit): string {
     </div>`
 }
 
+const DES_TP: Record<string, string> = {
+  WA: 'Wilderness Area',
+  WSA: 'Wilderness Study Area',
+  NWR: 'National Wildlife Refuge',
+  NM: 'National Monument',
+  NP: 'National Park',
+  NRA: 'National Recreation Area',
+  NCA: 'National Conservation Area',
+  ACEC: 'Area of Critical Environmental Concern',
+  MIL: 'Military',
+  RNA: 'Research Natural Area',
+  WSR: 'Wild &amp; Scenic River',
+  NS: 'National Seashore',
+  SW: 'State Wilderness',
+}
+const PUB_ACCESS: Record<string, string> = {
+  OA: 'Open access',
+  RA: 'Restricted (permit / seasonal)',
+  XA: 'Closed to public',
+  UK: 'Unknown',
+}
+
+export function restrictedPopupHtml(p: Record<string, unknown>): string {
+  const des = typeof p.Des_Tp === 'string' ? DES_TP[p.Des_Tp] ?? p.Des_Tp : p.Des_Tp
+  const acc = typeof p.Pub_Access === 'string' ? PUB_ACCESS[p.Pub_Access] ?? p.Pub_Access : p.Pub_Access
+  return `
+    <div class="popup">
+      <div class="popup-tag tag-restricted">⚠ Restricted area</div>
+      <div class="popup-title">${esc(p.Unit_Nm)}</div>
+      <table class="popup-table">
+        <tr><th>Type</th><td>${esc(des)}</td></tr>
+        <tr><th>Access</th><td>${esc(acc)}</td></tr>
+        <tr><th>Manager</th><td>${esc(p.Mang_Name)}</td></tr>
+      </table>
+      <p class="popup-note">Special designation — access, vehicles, and prospecting are often
+      limited or prohibited. Verify rules with the managing agency before you go.</p>
+    </div>`
+}
+
 const FAULT_TYPE: Record<string, string> = {
   N: 'Normal',
   R: 'Reverse',

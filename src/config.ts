@@ -37,6 +37,13 @@ export const BLM_SMA_TILES =
 export const BLM_SMA_SERVICE =
   'https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_Cached_with_PriUnk/MapServer'
 
+// --- Restricted / protected areas (USGS PAD-US v3.0) — wildlife refuges, wilderness,
+// WSAs, monuments, etc. that limit access/prospecting even on BLM ground. GeoJSON by bbox.
+export const PADUS_RESTRICTED =
+  'https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Manager_Name/FeatureServer/0'
+export const RESTRICTED_WHERE =
+  "Des_Tp IN ('WA','WSA','NWR','NM','NP','NRA','NCA','ACEC','MIL','RNA','WSR','NS','SW')"
+
 // --- Nevada Quaternary faults (NBMG / Nevada Bureau of Mines & Geology) — GeoJSON lines ---
 export const NBMG_FAULTS =
   'https://gisweb.unr.edu/nbmg/rest/services/Geology/Faults/MapServer/1'

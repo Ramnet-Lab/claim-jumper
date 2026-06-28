@@ -307,7 +307,7 @@ export default function App() {
         <button className="panel-toggle" onClick={() => setPanelOpen((o) => !o)} title="Toggle panel">
           ☰
         </button>
-        <div className="brand">⛏️ Claim Jumper</div>
+        <div className="brand">⛏️<span className="hide-narrow"> Claim Jumper</span></div>
         <SearchBox onSearch={handleSearch} />
         {status && <div className="status">{status}</div>}
         <ExpeditionButton
@@ -318,7 +318,8 @@ export default function App() {
           onOpenList={() => setExpPanelOpen(true)}
         />
         <button className="spots-btn" onClick={() => setPoiPanelOpen(true)} title="Saved spots">
-          📍 Spots {pois.length > 0 && <span className="spots-count">{pois.length}</span>}
+          📍<span className="hide-narrow"> Spots</span>{' '}
+          {pois.length > 0 && <span className="spots-count">{pois.length}</span>}
         </button>
       </header>
 

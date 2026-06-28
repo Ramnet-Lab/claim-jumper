@@ -13,6 +13,8 @@ import {
   MRDS_SITES,
   NBMG_FAULTS,
   NBMG_CONTACTS,
+  PADUS_RESTRICTED,
+  RESTRICTED_WHERE,
 } from '../config'
 import { addClaimsLayers, setActiveClaims, setExpiredClaims, CLAIM_FIELDS } from '../layers/claimsLayers'
 import { addMrdsLayer, setMrds, MRDS_FIELDS } from '../layers/mrdsLayer'
@@ -20,6 +22,7 @@ import { addLandLayer } from '../layers/landLayer'
 import { addGeologyLayer, addMagneticLayer, addHiresReliefLayer } from '../layers/geoContextLayers'
 import { addFaultsLayer, setFaults, FAULT_FIELDS } from '../layers/faultsLayer'
 import { addContactsLayer, setContacts, CONTACT_FIELDS } from '../layers/contactsLayer'
+import { addRestrictedLayer, setRestricted, RESTRICTED_FIELDS } from '../layers/restrictedLayer'
 import { setImageOverlay, clearImageOverlay } from '../layers/imageOverlay'
 import { queryEsriBbox, boundsToBbox } from '../data/esriGeojson'
 import { mineralWhereClause } from '../data/commodities'
@@ -30,6 +33,7 @@ import {
   faultPopupHtml,
   geologyPopupHtml,
   contactPopupHtml,
+  restrictedPopupHtml,
 } from '../ui/featurePopup'
 import type { AppState } from '../types'
 import type { TwiOverlay } from '../config'
@@ -115,6 +119,7 @@ export default function MapView({
       // geology + magnetic + hi-res relief context rasters sit at the bottom;
       // land status sits under the claim/fault vectors; contacts/faults under MRDS points
       addLandLayer(map, IDS.activeClaimsFill)
+      addRestrictedLayer(map, IDS.activeClaimsFill)
       addMagneticLayer(map, IDS.landLayer)
       addHiresReliefLayer(map, IDS.landLayer)
       addGeologyLayer(map, IDS.landLayer)
@@ -138,6 +143,29 @@ export default function MapView({
       const oe = e.originalEvent
       onContextMenuRef.current(e.lngLat.lng, e.lngLat.lat, oe.clientX, oe.clientY)
     })
+
+    // Long-press (touch-and-hold ~0.5s) → same menu, for mobile.
+    let lpTimer: ReturnType<typeof setTimeout> | null = null
+    let lpStart: { x: number; y: number } | null = null
+    const clearLp = () => {
+      if (lpTimer) clearTimeout(lpTimer)
+      lpTimer = null
+    }
+    map.on('touchstart', (e) => {
+      if (e.points.length !== 1) return clearLp()
+      lpStart = e.point
+      clearLp()
+      lpTimer = setTimeout(() => {
+        ;(navigator as Navigator & { vibrate?: (n: number) => void }).vibrate?.(15)
+        // map canvas fills the viewport, so its pixel ≈ client coords for the menu
+        onContextMenuRef.current(e.lngLat.lng, e.lngLat.lat, e.point.x, e.point.y)
+      }, 500)
+    })
+    map.on('touchmove', (e) => {
+      if (lpStart && e.point && Math.hypot(e.point.x - lpStart.x, e.point.y - lpStart.y) > 10) clearLp()
+    })
+    map.on('touchend', clearLp)
+    map.on('touchcancel', clearLp)
 
     return () => {
       map.remove()
@@ -319,6 +347,22 @@ export default function MapView({
       setContacts(map, { type: 'FeatureCollection', features: [] })
     }
 
+    if (s.layers.restricted.visible && zoom >= MRDS_MIN_ZOOM) {
+      jobs.push(
+        queryEsriBbox(PADUS_RESTRICTED, {
+          bbox,
+          where: RESTRICTED_WHERE,
+          outFields: RESTRICTED_FIELDS,
+          maxAllowableOffset: 0.002, // generalize big polygons
+          signal,
+        })
+          .then((fc) => setRestricted(map, fc))
+          .catch(swallow),
+      )
+    } else {
+      setRestricted(map, { type: 'FeatureCollection', features: [] })
+    }
+
     // Stable zoom hint only — no transient "loading" flash on every pan/zoom.
     if (!jobs.length && zoom < MIN_FETCH_ZOOM) {
       onStatus?.(`Zoom in to load claims (≥ z${MIN_FETCH_ZOOM})`)
@@ -371,6 +415,13 @@ function applyAllState(map: MlMap, s: AppState) {
   if (map.getLayer(IDS.landLayer)) {
     vis(map, IDS.landLayer, s.layers.land.visible)
     map.setPaintProperty(IDS.landLayer, 'raster-opacity', s.layers.land.opacity)
+  }
+
+  // restricted / protected areas
+  if (map.getLayer(IDS.restrictedFill)) {
+    for (const id of [IDS.restrictedFill, IDS.restrictedLine]) vis(map, id, s.layers.restricted.visible)
+    map.setPaintProperty(IDS.restrictedFill, 'fill-opacity', s.layers.restricted.opacity * 0.55)
+    map.setPaintProperty(IDS.restrictedLine, 'line-opacity', s.layers.restricted.opacity)
   }
 
   // faults (NBMG lines)
@@ -488,6 +539,7 @@ function wirePopups(map: MlMap, getState: () => AppState) {
 
   bind(IDS.activeClaimsFill, (p) => claimPopupHtml(p, 'Active'))
   bind(IDS.expiredClaimsFill, (p) => claimPopupHtml(p, 'Expired'))
+  bind(IDS.restrictedFill, (p) => restrictedPopupHtml(p))
   bind(IDS.faultsLayer, (p) => faultPopupHtml(p))
   bind(IDS.contactsLayer, (p) => contactPopupHtml(p))
   bind(IDS.mrdsLayer, (p) => mrdsPopupHtml(p))
@@ -498,6 +550,7 @@ function wirePopups(map: MlMap, getState: () => AppState) {
     IDS.mrdsLayer,
     IDS.faultsLayer,
     IDS.contactsLayer,
+    IDS.restrictedFill,
     IDS.activeClaimsFill,
     IDS.expiredClaimsFill,
   ]
